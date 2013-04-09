@@ -127,7 +127,7 @@ setup(name='trytond_nereid_activity_stream',
     zip_safe=False,
     entry_points="""
     [trytond.modules]
-    nereid_blog = trytond.modules.nereid_activity_stream
+    nereid_activity_stream = trytond.modules.nereid_activity_stream
     """,
     test_suite='tests.suite',
     cmdclass={
