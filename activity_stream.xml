@@ -114,5 +114,34 @@
             id="menu_nereid_activity_stream_object_list"
             sequence="20" icon="tryton-list"/>
 
+        <record model="ir.ui.view" id="activity_stream_broadcast_start_view_form">
+            <field name="model">activity.stream.broadcast.start</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <![CDATA[
+                <form string="Broadcast">
+                  <group col="1" id="broadcast_id">
+                    <label string="Broadcast a message to all the registered users of the system." id="broadcast" yalign="0.0" xalign="0.0" xexpand="1"/>
+                    <newline/>
+                    <label name="nereid_user" yalign="0.0" xalign="0.0"/>
+                    <field name="nereid_user"/>
+                    <separator colspan="4" name="message"/>
+                    <field name="message"/>
+                  </group>
+                </form>
+                ]]>
+              </field>
+        </record>
+
+        <record model="ir.action.wizard" id="act_activity_stream_broadcast">
+            <field name="name">Activity Stream Broadcast</field>
+            <field name="wiz_name">activity.stream.broadcast</field>
+        </record>
+
+        <menuitem name="Activity Stream Broadcast" 
+          parent="menu_nereid_activity_stream_object_list" 
+          action="act_activity_stream_broadcast"
+          id="menu_activity_stream_broadcast_list"/> 
+            
     </data>
 </tryton>

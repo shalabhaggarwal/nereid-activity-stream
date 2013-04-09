@@ -17,6 +17,7 @@ import trytond.tests.test_tryton
 from trytond.tests.test_tryton import test_view, test_depends
 from trytond.tests.test_tryton import POOL, CONTEXT, USER, DB_NAME
 from trytond.transaction import Transaction
+from trytond.wizard import Session
 
 
 class ActivityStreamTestCase(unittest.TestCase):
@@ -32,6 +33,8 @@ class ActivityStreamTestCase(unittest.TestCase):
         self.nereid_user_obj = POOL.get('nereid.user')
         self.currency_obj = POOL.get('currency.currency')
         self.activity_stream_object_obj = POOL.get('activity.stream.object')
+        self.activity_stream_broadcast_wizard = POOL. \
+            get('activity.stream.broadcast', type='wizard')
         self.model_obj = POOL.get('ir.model')
 
     def test0005views(self):
@@ -70,7 +73,7 @@ class ActivityStreamTestCase(unittest.TestCase):
             'name': 'Party1',
         })
 
-        nereid_user_user = self.nereid_user_obj.create({
+        self.nereid_user_user = self.nereid_user_obj.create({
             'party': self.user_party,
             'company': self.company,
         })
@@ -81,8 +84,17 @@ class ActivityStreamTestCase(unittest.TestCase):
         })
 
         self.nereid_stream_owner = self.nereid_user_obj.create({
-            'party': nereid_user_user,
+            'party': self.nereid_user_user,
             'company': self.company,
+        })
+
+        party_model_id, = self.model_obj.search([
+            ('model', '=', 'party.party')
+        ])
+
+        activity_stream_object = self.activity_stream_object_obj.create({
+            'name': 'Party',
+            'model': party_model_id,
         })
 
     def test0010activity_stream(self):
@@ -92,24 +104,15 @@ class ActivityStreamTestCase(unittest.TestCase):
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
             self.create_user()
 
-            party_model_id, = self.model_obj.search([
-                ('model', '=', 'party.party')
-            ])
-
-            activity_stream_object = self.activity_stream_object_obj.create({
-                'name': 'Party',
-                'model': party_model_id,
-            })
-           
             activity_stream = self.activity_stream_obj.create({
                 'verb': 'Added a new friend',
                 'actor': self.nereid_user_actor,
                 'nereid_user': self.nereid_stream_owner,
                 'object': 'party.party,%s' % self.user_party,
             })
-
             user = self.nereid_user_obj.browse(self.nereid_stream_owner)
-            self.assert_(
+
+            self.assertTrue(
                 self.activity_stream_obj.browse(activity_stream) in \
                 user.activity_stream
             )
@@ -121,15 +124,43 @@ class ActivityStreamTestCase(unittest.TestCase):
         with Transaction().start(DB_NAME, USER, context=CONTEXT):
             self.create_user()
 
-            self.assertRaisesRegexp(
-                Exception,
-                '.*for the field "object" is not in the selection',
-                self.activity_stream_obj.create, {
+            self.assertRaises(
+                Exception, self.activity_stream_obj.create, {
                     'verb': 'Added a new friend',
                     'actor': self.nereid_user_actor,
                     'nereid_user': self.nereid_stream_owner,
                     'object': 'company.company,%s' % self.company,
                 }
+            )
+
+    def test0030activity_stream_broadcast(self):
+        '''
+        Creates activity stream broadcast for activity stream.
+        '''
+        with Transaction().start(DB_NAME, USER, context=CONTEXT):
+            self.create_user()
+
+            session_id, start_state, end_state = self. \
+                activity_stream_broadcast_wizard.create()
+
+            session = Session(
+                self.activity_stream_broadcast_wizard, session_id
+            )
+
+            session.data['start'].update({
+                'nereid_user': self.nereid_user_actor,
+                'message': 'This is a system test message'
+            })
+
+            self.activity_stream_broadcast_wizard.transition_submit_(session)
+            user1 = self.nereid_user_obj.browse(self.nereid_stream_owner)
+            user2 = self.nereid_user_obj.browse(self.nereid_user_user)
+            user3 = self.nereid_user_obj.browse(self.nereid_user_actor)
+
+            for each in (user1, user2, user3):
+                self.assertTrue(
+                    'This is a system test message' in \
+                        each.activity_stream[0].verb
             )
 
 
